@@ -1,9 +1,9 @@
 import streamlit as st
-import joblib
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
 import plotly.express as px
+from sklearn.ensemble import RandomForestRegressor
 
 # ================= PAGE CONFIG =================
 st.set_page_config(page_title="Energy Forecasting App", layout="wide")
@@ -15,13 +15,6 @@ st.markdown("""
     .stButton>button {background-color: #4CAF50; color: white; border-radius: 10px;}
     </style>
 """, unsafe_allow_html=True)
-
-# ================= LOAD MODEL =================
-try:
-    model = joblib.load('model/model.pkl')
-except Exception as e:
-    st.error("❌ Model failed to load. Please check deployment.")
-    st.stop()
 
 # ================= HEADER =================
 st.title("⚡ Smart Energy Demand Forecasting")
@@ -43,53 +36,55 @@ day = st.sidebar.slider("Day", 1, 31, 15)
 # ================= LOAD DATA =================
 df = pd.read_csv('data/energy_data.csv')
 
+# ================= PREPROCESSING =================
+df['date'] = pd.to_datetime(df['date'])
+df['month'] = df['date'].dt.month
+df['day'] = df['date'].dt.day
+
+# ================= TRAIN MODEL INSIDE APP =================
+features = [
+    'avg_temperature',
+    'humidity',
+    'co2_emission',
+    'industrial_activity_index',
+    'energy_price',
+    'month',
+    'day'
+]
+
+X = df[features]
+y = df['energy_consumption']
+
+model = RandomForestRegressor(n_estimators=100, random_state=42)
+model.fit(X, y)
+
 # ================= PREDICTION =================
 if st.button("🔍 Predict Energy Consumption"):
-    try:
-        # Create DataFrame with correct structure
-        input_data = pd.DataFrame({
-            'avg_temperature': [temp],
-            'humidity': [humidity],
-            'co2_emission': [co2],
-            'industrial_activity_index': [industry],
-            'energy_price': [price],
-            'month': [month],
-            'day': [day]
-        })
+    input_data = pd.DataFrame({
+        'avg_temperature': [temp],
+        'humidity': [humidity],
+        'co2_emission': [co2],
+        'industrial_activity_index': [industry],
+        'energy_price': [price],
+        'month': [month],
+        'day': [day]
+    })
 
-        # Ensure exact column order
-        input_data = input_data[[
-            'avg_temperature',
-            'humidity',
-            'co2_emission',
-            'industrial_activity_index',
-            'energy_price',
-            'month',
-            'day'
-        ]]
+    prediction = model.predict(input_data)
 
-        # Handle any missing values
-        input_data = input_data.fillna(0)
+    col1, col2 = st.columns(2)
 
-        prediction = model.predict(input_data)
+    with col1:
+        st.metric("⚡ Predicted Energy", f"{prediction[0]:.2f}")
 
-        col1, col2 = st.columns(2)
+    with col2:
+        st.metric("🌡️ Temperature Used", temp)
 
-        with col1:
-            st.metric("⚡ Predicted Energy", f"{prediction[0]:.2f}")
-
-        with col2:
-            st.metric("🌡️ Temperature Used", temp)
-
-        # Bar chart
-        fig_bar, ax = plt.subplots()
-        ax.bar(["Predicted"], [prediction[0]])
-        ax.set_ylabel("Energy Consumption")
-        st.pyplot(fig_bar)
-
-    except Exception as e:
-        st.error("❌ Prediction failed. Model compatibility issue.")
-        st.write(e)
+    # Bar chart
+    fig_bar, ax = plt.subplots()
+    ax.bar(["Predicted"], [prediction[0]])
+    ax.set_ylabel("Energy Consumption")
+    st.pyplot(fig_bar)
 
 # ================= BASIC GRAPH =================
 st.subheader("📈 Energy Consumption Trend")
@@ -103,17 +98,14 @@ st.pyplot(fig_line_basic)
 # ================= ADVANCED CHARTS =================
 st.subheader("📊 Advanced Data Visualizations")
 
-# Plotly Line Chart
 fig_line = px.line(df.head(200), y='energy_consumption',
                    title="Energy Consumption Over Time")
 st.plotly_chart(fig_line, use_container_width=True)
 
-# Histogram
 fig_hist = px.histogram(df, x='energy_consumption', nbins=30,
                         title="Energy Consumption Distribution")
 st.plotly_chart(fig_hist, use_container_width=True)
 
-# Scatter Plot
 fig_scatter = px.scatter(df.head(200),
                          x='avg_temperature',
                          y='energy_consumption',
