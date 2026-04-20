@@ -17,7 +17,11 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 # ================= LOAD MODEL =================
-model = joblib.load('model/model.pkl')
+try:
+    model = joblib.load('model/model.pkl')
+except Exception as e:
+    st.error("❌ Model failed to load. Please check deployment.")
+    st.stop()
 
 # ================= HEADER =================
 st.title("⚡ Smart Energy Demand Forecasting")
@@ -41,31 +45,51 @@ df = pd.read_csv('data/energy_data.csv')
 
 # ================= PREDICTION =================
 if st.button("🔍 Predict Energy Consumption"):
-    input_data = pd.DataFrame([[temp, humidity, co2, industry, price, month, day]],
-columns=[
-    'avg_temperature',
-    'humidity',
-    'co2_emission',
-    'industrial_activity_index',
-    'energy_price',
-    'month',
-    'day'
-])
-    prediction = model.predict(input_data)
+    try:
+        # Create DataFrame with correct structure
+        input_data = pd.DataFrame({
+            'avg_temperature': [temp],
+            'humidity': [humidity],
+            'co2_emission': [co2],
+            'industrial_activity_index': [industry],
+            'energy_price': [price],
+            'month': [month],
+            'day': [day]
+        })
 
-    col1, col2 = st.columns(2)
+        # Ensure exact column order
+        input_data = input_data[[
+            'avg_temperature',
+            'humidity',
+            'co2_emission',
+            'industrial_activity_index',
+            'energy_price',
+            'month',
+            'day'
+        ]]
 
-    with col1:
-        st.metric("⚡ Predicted Energy", f"{prediction[0]:.2f}")
+        # Handle any missing values
+        input_data = input_data.fillna(0)
 
-    with col2:
-        st.metric("🌡️ Temperature Used", temp)
+        prediction = model.predict(input_data)
 
-    # Bar chart
-    fig_bar, ax = plt.subplots()
-    ax.bar(["Predicted"], [prediction[0]])
-    ax.set_ylabel("Energy Consumption")
-    st.pyplot(fig_bar)
+        col1, col2 = st.columns(2)
+
+        with col1:
+            st.metric("⚡ Predicted Energy", f"{prediction[0]:.2f}")
+
+        with col2:
+            st.metric("🌡️ Temperature Used", temp)
+
+        # Bar chart
+        fig_bar, ax = plt.subplots()
+        ax.bar(["Predicted"], [prediction[0]])
+        ax.set_ylabel("Energy Consumption")
+        st.pyplot(fig_bar)
+
+    except Exception as e:
+        st.error("❌ Prediction failed. Model compatibility issue.")
+        st.write(e)
 
 # ================= BASIC GRAPH =================
 st.subheader("📈 Energy Consumption Trend")
