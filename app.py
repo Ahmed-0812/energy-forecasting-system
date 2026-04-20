@@ -41,7 +41,16 @@ df = pd.read_csv('data/energy_data.csv')
 
 # ================= PREDICTION =================
 if st.button("🔍 Predict Energy Consumption"):
-    input_data = np.array([[temp, humidity, co2, industry, price, month, day]])
+    input_data = pd.DataFrame([[temp, humidity, co2, industry, price, month, day]],
+columns=[
+    'avg_temperature',
+    'humidity',
+    'co2_emission',
+    'industrial_activity_index',
+    'energy_price',
+    'month',
+    'day'
+])
     prediction = model.predict(input_data)
 
     col1, col2 = st.columns(2)
