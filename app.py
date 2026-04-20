@@ -41,22 +41,28 @@ df['date'] = pd.to_datetime(df['date'])
 df['month'] = df['date'].dt.month
 df['day'] = df['date'].dt.day
 
-# ================= TRAIN MODEL INSIDE APP =================
-features = [
-    'avg_temperature',
-    'humidity',
-    'co2_emission',
-    'industrial_activity_index',
-    'energy_price',
-    'month',
-    'day'
-]
+# ================= TRAIN MODEL (CACHED) =================
+@st.cache_resource
+def train_model(data):
+    features = [
+        'avg_temperature',
+        'humidity',
+        'co2_emission',
+        'industrial_activity_index',
+        'energy_price',
+        'month',
+        'day'
+    ]
+    
+    X = data[features]
+    y = data['energy_consumption']
+    
+    model = RandomForestRegressor(n_estimators=50, random_state=42)
+    model.fit(X, y)
+    
+    return model
 
-X = df[features]
-y = df['energy_consumption']
-
-model = RandomForestRegressor(n_estimators=100, random_state=42)
-model.fit(X, y)
+model = train_model(df)
 
 # ================= PREDICTION =================
 if st.button("🔍 Predict Energy Consumption"):
